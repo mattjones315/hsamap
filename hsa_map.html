@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.hsa {
+  fill: none;
+  stroke: #595959;
+  stroke-linejoin: round;
+}  
+
+.states {
+  fill: none;
+  stroke: white;
+  stroke-linejoin: round;
+}
+
+.region:hover {
+  stroke: black;
+  border: .75px;
+}
+
+div.tooltip {
+ position: absolute;
+ width: 140px;
+ height: 100px;
+ padding: 5px;
+ background: #ffffff;
+ opacity: 80%;
+ border: 1px solid #dedede;
+ border-color: black;
+ pointer-events: none;
+}
+
+.hsa-name {
+  font-weight: bold;
+  font-family: "Arial", Helvetica, sans-serif;
+  font-size: 12px;
+  border-bottom: 1px solid #dedede;
+}
+
+.table {
+  font-size: 12px;
+  text-align: left;
+}
+.legend {
+  text-align: left;
+  font-family: "Arial", Helvetica, sans-serif;
+  border-radius: 50px;
+}
+
+
+</style>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.19/topojson.min.js"></script>
+<script>
+
+var width = 1020,
+    height = 500;
+
+var color_domain = [-100, 150];
+var color = d3.scale.linear()
+    .domain(color_domain)
+    .range(["green", "red"]);
+
+var legend_colors = [-300, -200, -100, 0, 100, 200];
+var legend_labels = [" < -$300", "-$200", "-$100", "$0", "$100", " > $200"];
+
+
+var div = d3.select("body").append("div")
+ .attr("class", "tooltip")
+ .style("opacity", 0);
+ 
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+
+var projection = d3.geo.albersUsa() 
+
+var path = d3.geo.path()
+    .projection(projection);
+
+queue()
+ .defer(d3.json, "hsa_topo.json")
+ .defer(d3.csv, "hsa_predicted_savings.csv")
+ .defer(d3.csv, "hsa_attr.csv")
+ .defer(d3.json, "us-10m.json")
+ .await(ready);
+
+
+function ready(error, us, data, data2, over) {
+ var pairSavingWithId = {};
+ var pairTruncSavingWithId = {};
+ var pairNameWithId = {};
+ var pairPriceWithId = {};
+ 
+ var pairCVWithId = {};
+ var pairRatioWithId = {};
+  data.forEach(function(d) {
+    if (d.trunc_savings == 10000) {
+      pairSavingWithId[d.hsanum] = null;
+      pairTruncSavingWithId[d.hsanum] = "N/A";
+    } else {
+      pairSavingWithId[d.hsanum] = d.savings;
+      pairTruncSavingWithId[d.hsanum] = d.trunc_savings;
+    }
+
+    if (d.mean_price == 10000) {
+      pairPriceWithId[d.hsanum] = "N/A";
+    } else {
+      pairPriceWithId[d.hsanum] = d.mean_price;
+    }
+
+    if (d.p7525_ratio == 10000) {
+      pairRatioWithId[d.hsanum] = "N/A";
+    } else {
+      pairRatioWithId[d.hsanum] = d.p7525_ratio;
+    }
+
+  });
+  data2.forEach(function(d) {
+    if (pairSavingWithId[d.HSA93] == null) {
+      pairTruncSavingWithId[d.HSA93] = "N/A";
+      pairPriceWithId[d.HSA93] = "N/A";
+      pairRatioWithId[d.HSA93] = "N/A";
+    }
+    pairNameWithId[d.HSANAME] = d.HSANAME;
+  });
+    svg.append("g")
+      .attr("class", "hsa")
+      .selectAll("path")
+      .data(topojson.feature(us, us.objects.hsa_bdry).features)
+      .enter().append("path")
+        .attr("d", path)
+        .style ( "fill" , function (d) {
+          if (pairSavingWithId[d.properties.HSA93] == null) {
+            return color(0);
+          }
+          return color (pairSavingWithId[d.properties.HSA93]);
+        })
+      .style("opacity", 0.8)
+      .on("mouseover", function(d) {
+        d3.select(this).attr("class", "region")
+        d3.select(this).transition().duration(100).style("opacity", 20)
+        div.transition().duration(100)
+          .style("opacity", 1)
+          div.html("<p class='hsa-name'>" + pairNameWithId[d.properties.HSANAME] + "<\p> <p class='table'>" + "Savings: " + pairTruncSavingWithId[d.properties.HSA93] + "<br>" + "Mean Price: " + pairPriceWithId[d.properties.HSA93] + "<br>" + "Ratio: " + pairRatioWithId[d.properties.HSA93] + "<\p>")
+            .style("left", (d3.event.pageX +10) + "px")
+            .style("top", (d3.event.pageY +30) + "px");
+        })
+      .on("mouseout", function() {
+       d3.select(this)
+       .transition().duration(300)
+       .style("opacity", 0.8);
+       div.transition().duration(300)
+       .style("opacity", 0);
+       })
+
+    svg.append("g")
+      .attr("class", "states")
+      .selectAll("path")
+      .data(topojson.feature(over, over.objects.states).features)
+      .enter().append("path")
+      .filter(function(d) {
+        return d.id != 2 && d.id != 15;
+      })
+        .attr("d", path);
+}
+
+var legend = svg.selectAll("g.legend")
+    .data(legend_colors)
+    .enter().append("g")
+    .attr("class", "legend");
+
+var ls_w = 50; ls_h = 50;
+
+legend.append("rect")
+      .attr("x", 900)
+      .attr("y", function(d, i) {return height - (i *ls_h) - 2*ls_h;})
+      .attr("width", ls_w)
+      .attr("height", ls_h)
+      .style("fill", function (d, i) {return color(d); })
+      .style("opacity", 0.8);
+legend.append("text")
+      .attr("x", 960)
+      .attr("y", function (d, i) {return height - (i* ls_h) - ls_h - 4;})
+      .text(function (d, i) {return legend_labels[i]; });
+legend.append("text")
+      .attr("x", 880)
+      .attr("y", 120)
+      .text("Potential Savings")
+legend.append("text")
+      .attr("x", 880)
+      .attr("y", 140)
+      .text("Per Treatment");
+</script>
