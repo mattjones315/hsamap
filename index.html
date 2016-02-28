@@ -59,10 +59,10 @@ div.tooltip {
 var width = 1020,
     height = 500;
 
-var color_domain = [-100, 150];
+var color_domain = [-100, 175];
 var color = d3.scale.linear()
     .domain(color_domain)
-    .range(["green", "red"]);
+    .range(["#3182bd", "#deebf7"]);
 
 var legend_colors = [-300, -200, -100, 0, 100, 200];
 var legend_labels = [" < -$300", "-$200", "-$100", "$0", "$100", " > $200"];
@@ -146,7 +146,7 @@ function ready(error, us, data, data2, over) {
         d3.select(this).transition().duration(100).style("opacity", 20)
         div.transition().duration(100)
           .style("opacity", 1)
-          div.html("<p class='hsa-name'>" + pairNameWithId[d.properties.HSANAME] + "<\p> <p class='table'>" + "Savings: " + pairTruncSavingWithId[d.properties.HSA93] + "<br>" + "Mean Price: " + pairPriceWithId[d.properties.HSA93] + "<br>" + "Ratio: " + pairRatioWithId[d.properties.HSA93] + "<\p>")
+          div.html("<p class='hsa-name'>" + pairNameWithId[d.properties.HSANAME] + "<\p> <p class='table'>" + "Savings: $" + pairTruncSavingWithId[d.properties.HSA93] + "<br>" + "Mean Price: $" + pairPriceWithId[d.properties.HSA93] + "<br>" + "Ratio: " + pairRatioWithId[d.properties.HSA93] + "<\p>")
             .style("left", (d3.event.pageX +10) + "px")
             .style("top", (d3.event.pageY +30) + "px");
         })
